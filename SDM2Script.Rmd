@@ -1,0 +1,279 @@
+---
+title: "SDM-II FINAL PROJECT"
+output:
+  pdf_document: default
+  html_document: default
+date: '2022-12-06'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+
+```{r cars}
+library(randomForest)
+library(datasets)
+library(caret)
+library(data.table)
+prj<- fread("~/Downloads/SDM2.csv", stringsAsFactors =TRUE)
+head(prj)
+```
+
+```{r}
+prj$FSC <- as.factor(prj$FSC)
+table(prj$FSC)
+```
+
+1 - Normal 
+2 - Suspect 
+3 - Pathologic
+
+We observe more Nomral observations, and next more suspected observations and less pathological ones. 
+
+Plotting correlation heatmap
+```{r}
+cl <- prj[, c(1,2,3,4,5,6,7,8,9)]
+head(cl)
+```
+```{r}
+cormat <- round(cor(cl),2)
+head(cormat)
+```
+
+```{r}
+library(reshape2)
+melted_cormat <- melt(cormat)
+head(melted_cormat)
+```
+```{r}
+library(ggplot2)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+theme(text = element_text(size = 6),element_line(size =1))
+```
+```{r}
+ind <- sample(2, nrow(prj), replace = TRUE, prob = c(0.7, 0.3))
+train <- prj[ind==1,]
+test <- prj[ind==2,]
+```
+
+RANDOM FOREST MODEL 
+
+
+```{r}
+rf <- randomForest(FSC~., data=train, proximity=TRUE) 
+print(rf)
+```
+
+```{r}
+p1 <- predict(rf, train)
+confusionMatrix(p1, train$FSC)
+```
+
+```{r}
+p2 <- predict(rf, test)
+confusionMatrix(p2, test$FSC)
+```
+
+```{r}
+plot(rf)
+```
+The model is predicted with high accuracy, with no need for further tuning. 
+
+Partial dependence plot 
+
+```{r}
+partialPlot(rf, train, UterineContractions, 1)
+```
+
+We can infer that if the number of uterine contractions is less than 10 then there is higher chance of being put into '1' state or 'normal' state. 
+Multi-dimensional Scaling Plot of Proximity Matrix
+Dimension plot also can be created from random forest model.
+```{r}
+MDSplot(rf, train$FSC)
+```
+
+NAIVE BAYES CLASSIFIER 
+
+```{r}
+library(naivebayes)
+library(dplyr)
+library(ggplot2)
+library(psych)
+```
+
+```{r}
+pairs.panels(cl[-1])
+```
+
+```{r}
+prj %>%
+         ggplot(aes(x=FSC, y=CLASS, fill = FSC)) +
+         geom_boxplot() +theme_bw()+
+         ggtitle("Box Plot")
+```
+```{r}
+prj %>%
+         ggplot(aes(x=FSC, y=Accelarations, fill = FSC)) +
+         geom_boxplot() +theme_bw()+
+         ggtitle("Box Plot")
+```
+```{r}
+nb <- naive_bayes(FSC~., data=train, proximity=TRUE) 
+print(nb)
+```
+accuracy of train set 
+```{r}
+nbp1 <- predict(nb, train)
+confusionMatrix(nbp1, train$FSC)
+```
+
+accuracy of test set 
+```{r}
+nbp2 <- predict(nb, test)
+confusionMatrix(nbp2, test$FSC)
+```
+
+DESICION TREE 
+
+```{r}
+library(rpart.plot)
+library(rpart)
+fit <- rpart(FSC~., data = train, method = 'class')
+rpart.plot(fit, extra = 106)
+```
+```{r}
+predict_unseen <-predict(fit, test, type = 'class')
+table_mat <- table(test$FSC, predict_unseen)
+table_mat
+```
+
+```{r}
+accuracy_Test <- sum(diag(table_mat)) / sum(table_mat)
+print(paste('Accuracy for test', accuracy_Test))
+```
+
+
+K-NEAREST NEIGHBOR
+
+```{r}
+library(caTools)
+library(class)
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 1)
+classifier_knn
+```
+
+```{r}
+cm <- table(test$FSC, classifier_knn)
+cm
+```
+
+```{r}
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+```{r}
+# K = 3
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 3)
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+
+```{r}
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 5)
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+```{r}
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 7)
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+
+```{r}
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 15)
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+
+```{r}
+classifier_knn <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 19)
+misClassError <- mean(classifier_knn != test$FSC)
+print(paste('Accuracy =', 1-misClassError))
+```
+
+```{r}
+library(cvms)
+accuracy <- sum(diag(cm)) / sum(cm)
+print(paste('Overall Accuracy', accuracy))
+```
+
+```{r}
+
+#NROW(train)
+#dat.d <- sample(1:nrow(cl),size=nrow(cl)*0.7,replace = FALSE) #random selection of 70% data.
+#train.prj <- prj[dat.d,] # 70% training data
+#test.prj <- prj[-dat.d,] # remaining 30% test data
+#train_labels <- cl[dat.d,1]
+#test_labels <-cl[-dat.d,1]
+#knn.38 <- knn(train=train.prj, test=test.prj, cl=train_labels, k=26)
+knn.39 <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 39)
+knn.38 <- knn(train = train,
+                      test = test,
+                      cl = train$FSC,
+                      k = 38)
+#knn.27 <- knn(train=train.prj, test=test.prj, cl=test_labels, k=27)
+
+```
+
+```{r}
+
+i=1
+k.optm=1
+for (i in 1:28){
+ knn.mod <- knn(train=train, test=test, cl=train$FSC, k=i)
+ k.optm[i] <- 100 * sum(test$FSC == knn.mod)/NROW(test$FSC)
+ k=i
+ cat(k,'=',k.optm[i],'')
+ }
+```
+
+```{r}
+plot(k.optm, type="b", xlab="K- Value",ylab="Accuracy level")
+```
+```{r}
+library(survival)
+fit.surv <- survfit(Surv(, class) ~ 1, data=prj)
+
+plot(fit.surv)
+```
+

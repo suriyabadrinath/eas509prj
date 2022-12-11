@@ -1,0 +1,205 @@
+---
+title: "stats"
+output:
+  pdf_document: default
+  word_document: default
+date: "2022-12-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+```{r}
+library(tibble)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(plotly)
+library(data.table)
+library(ggbiplot)
+library(tidyr)
+library(cowplot)
+library(cluster)
+library(GGally)
+library(corrgram)
+library(magrittr)
+library(ggplot2)
+library(plotly)
+library(data.table)
+library(caret)
+#library(ggbiplot)
+library(tidyr)
+library(cowplot)
+library(dendextend)
+library(ggplot2)
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+library(clusterSim)
+library(ggdendro)
+
+```
+```{r}
+data3 <- read.csv("SDM2.csv")
+head(data3)
+
+```
+
+###PCA
+
+```{r}
+pca <- prcomp(data3, scale = F)
+pca
+
+```
+###Biplot for PCA
+```{r}
+biplot(pca,scale =0)
+
+```
+### Variance
+```{r}
+var_explained <- pca$sdev^2 / sum(pca$sdev^2)
+var_explained
+
+```
+```{r}
+plot(var_explained, xlab = "Principal Component",
+    ylab = "Variance Explained",
+     type = "b")
+```
+```{r}
+pr.var <- pca$sdev^2
+pve <- pr.var / sum(pr.var)
+Cols <- function(vec) {
+   cols <- rainbow(length(unique(vec)))
+   return(cols[as.numeric(as.factor(vec))])
+ }
+par(mfrow = c(1, 2))
+plot(pve, ylim = c(0, 1),type = "b")
+plot(cumsum(pve),ylim = c(0, 1), type = "b")
+
+```
+### Optimal number of clusters using elbow method
+```{r}
+set.seed(123)
+# Compute and plot wss for k = 2 to k = 15.
+k.max <- 15
+data <- data3
+wss <- sapply(1:k.max, 
+              function(k){kmeans(data, k, nstart=50,iter.max = 15 )$tot.withinss})
+wss
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+```
+### Optimal number of clusters using Gap Statistic
+```{r}
+
+set.seed(123)
+gap<- clusGap(data3, FUN = kmeans, nstart =25, K.max =10, B=50)
+print(gap, methd ="firstmax")
+plot(gap, main = "Gap Statistic: kmeans")
+```
+### Optimal number of clusters using Silhouette method
+```{r}
+avg_sil <- function(k) {
+  km.res <- kmeans(data3, centers = k, nstart = 25)
+  ss<- silhouette(km.res$cluster, dist(data3))
+  mean(ss[,3])}
+
+k.values<-2:15
+
+avg_sil_values <-map_dbl(k.values,avg_sil)
+
+plot(k.values, avg_sil_values,
+     type="b", pch=19, frame = FALSE,
+     xlab ="Number of cluster K",
+     ylab="average silhouttes")
+
+fviz_nbclust(data3, kmeans, method='silhouette')
+
+```
+###Clusters Visulalization using k-means
+```{r}
+out <- kmeans(data3, 3, nstart = 20)
+
+subplot(
+  plot_ly(x=pca$x[,1],y=pca$x[,2], color = as.factor(out$cluster), colors=c("red","blue","green"))
+)
+
+```
+## Cluster with Hierarchical Clustering
+
+```{r}
+dist_mat <- dist(data3, method = 'euclidean')
+```
+
+
+```{r}
+hclust_avg <- hclust(dist_mat, method = 'average')
+plot(hclust_avg)
+```
+```{r}
+d <- dist(data3, method = "euclidean")
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "single" )
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+```{r}
+#d <- dist(data, method = "euclidean")
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "average" )
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+```{r}
+cut_avg <- cutree(hclust_avg, k = 2)
+```
+
+```{r}
+plot(hclust_avg)
+rect.hclust(hclust_avg , k = 2, border = 2:6)
+abline(h = 3, col = 'red')
+```
+```{r}
+
+suppressPackageStartupMessages(library(dendextend))
+avg_dend_obj <- as.dendrogram(hclust_avg)
+avg_col_dend <- color_branches(avg_dend_obj, h = 3)
+plot(avg_col_dend)
+
+
+
+```
+
+
+
